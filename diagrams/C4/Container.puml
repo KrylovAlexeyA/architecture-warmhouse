@@ -1,0 +1,37 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+Person(user, "User", "Smart Home Owner")
+
+System_Boundary(smart_home, "Smart Home Ecosystem") {
+    Container(api_gateway, "API Gateway", "Go", "Single API entry point")
+    Container(device_service, "Device Service", "Go", "Manages connected devices")
+    Container(telemetry_service, "Telemetry Service", "Go", "Collects sensor and device metrics")
+    Container(user_service, "User Service", "Go", "Manages user accounts and profiles")
+    Container(automation_service, "Automation Service", "Go", "Manages automation rules and triggers")
+
+    ContainerDb(device_db, "Device DB", "PostgreSQL", "Stores device configurations and states")
+    ContainerDb(telemetry_db, "Telemetry DB", "TimescaleDB", "Stores time-series telemetry data")
+    ContainerDb(user_db, "User DB", "PostgreSQL", "Stores user credentials and profiles")
+    ContainerDb(automation_db, "Automation DB", "PostgreSQL", "Stores automation rules and schedules")
+
+    ContainerQueue(message_broker, "Message Broker", "RabbitMQ", "Handles asynchronous event communication")
+}
+
+Rel(user, api_gateway, "Sends commands and settings\nvia web interface / mobile app")
+
+Rel(api_gateway, device_service, "Proxies device management requests", "HTTP")
+Rel(api_gateway, telemetry_service, "Proxies telemetry data requests", "HTTP")
+Rel(api_gateway, user_service, "Proxies user profile requests", "HTTP")
+Rel(api_gateway, automation_service, "Proxies automation rule requests", "HTTP")
+
+Rel(device_service, device_db, "Persists and retrieves device configurations")
+Rel(telemetry_service, telemetry_db, "Stores raw telemetry data and aggregates")
+Rel(user_service, user_db, "Authenticates users and manages profiles")
+Rel(automation_service, automation_db, "Loads and persists automation rules")
+
+Rel(telemetry_service, message_broker, "Publishes events: 'new sensor readings'", "RabbitMQ")
+Rel(automation_service, message_broker, "Subscribes to events: 'new sensor readings'", "RabbitMQ")
+Rel(automation_service, device_service, "Sends device control commands (on/off/etc.)", "HTTP")
+
+@enduml

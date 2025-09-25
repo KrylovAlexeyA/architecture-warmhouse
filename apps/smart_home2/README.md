@@ -1,4 +1,4 @@
-# Smart Home Sensor Management API
+# Smart Home Sensor Management API 2
 
 ## Prerequisites
 
@@ -10,8 +10,13 @@
 
 The easiest way to start the application is to use Docker Compose:
 
+for bash: 
 ```bash
-./init.sh
+ docker-compose up --build
+```
+for zsh:
+```zsh (mac os)
+ docker compose up --build
 ```
 
 This script will:
@@ -20,30 +25,7 @@ This script will:
 2. Wait for the services to be ready
 3. Display information about how to access the API
 
-Alternatively, you can run Docker Compose directly:
-
-```bash
-docker-compose up -d
-```
-
-The API will be available at http://localhost:8080
-
-### Option 2: Manual setup
-
-If you prefer to run the application without Docker:
-
-1. Start the PostgreSQL database:
-
-```bash
-docker-compose up -d postgres
-```
-
-2. Build and run the application:
-
-```bash
-go build -o smarthome
-./smarthome
-```
+The API will be available at http://localhost:8081
 
 ## API Testing
 

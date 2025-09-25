@@ -1,0 +1,113 @@
+asyncapi: 2.6.0
+info:
+  title: SmartHome Events
+  version: 1.0.0
+  description: Асинхронные события телеметрии и уведомлений в экосистеме SmartHome.
+  contact:
+    name: SmartHome Dev Team
+
+servers:
+  production:
+    url: kafka.smarthome.local:9092
+    protocol: kafka
+    description: Kafka-брокер для продакшена
+
+channels:
+  telemetry.readings:
+    description: Канал для публикации показаний с датчиков устройств.
+    publish:
+      message:
+        $ref: '#/components/messages/TelemetryReadingEvent'
+
+  notifications.alerts:
+    description: Канал для публикации системных оповещений и алертов.
+    publish:
+      message:
+        $ref: '#/components/messages/AlertNotificationEvent'
+
+components:
+  messages:
+    TelemetryReadingEvent:
+      name: TelemetryReadingEvent
+      title: Показание с датчика
+      summary: Публикуется при получении нового показания с устройства.
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          eventId:
+            type: string
+            description: Уникальный ID события
+            example: "evt-1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p"
+          deviceId:
+            type: string
+            description: ID устройства, отправившего показание
+            example: "d7b3a9f1-4c8e-4f2a-9b1c-2a3d4e5f6a7b"
+          metric:
+            type: string
+            description: Тип метрики
+            enum: [temperature, humidity, pressure]
+            example: "temperature"
+          value:
+            type: number
+            description: Значение показания
+            example: 23.7
+          unit:
+            type: string
+            description: Единица измерения
+            example: "°C"
+          timestamp:
+            type: string
+            format: date-time
+            description: Время измерения
+            example: "2025-04-05T11:10:00Z"
+        required:
+          - eventId
+          - deviceId
+          - metric
+          - value
+          - unit
+          - timestamp
+
+    AlertNotificationEvent:
+      name: AlertNotificationEvent
+      title: Оповещение системы
+      summary: Публикуется при срабатывании системного алерта.
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          alertId:
+            type: string
+            description: Уникальный ID алерта
+            example: "alert-99aabbcc-ddee-ff00-1122-334455667788"
+          deviceId:
+            type: string
+            description: ID устройства, вызвавшего алерт
+            example: "d7b3a9f1-4c8e-4f2a-9b1c-2a3d4e5f6a7b"
+          alertType:
+            type: string
+            description: Тип алерта
+            enum: [TEMPERATURE_HIGH, HUMIDITY_LOW, DEVICE_OFFLINE]
+            example: "TEMPERATURE_HIGH"
+          message:
+            type: string
+            description: Текст сообщения
+            example: "Температура превысила 25°C"
+          severity:
+            type: string
+            description: Уровень важности
+            enum: [INFO, WARNING, CRITICAL]
+            example: "WARNING"
+          triggeredAt:
+            type: string
+            format: date-time
+            description: Время срабатывания
+            example: "2025-04-05T11:12:00Z"
+        required:
+          - alertId
+          - deviceId
+          - alertType
+          - message
+          - severity
+          - triggeredAt

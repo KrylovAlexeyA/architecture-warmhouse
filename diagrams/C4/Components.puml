@@ -1,0 +1,97 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+' Общие внешние зависимости (объявлены один раз)
+Container(api_gateway, "API Gateway", "Go", "External dependency")
+ContainerQueue(message_broker, "Message Broker", "RabbitMQ", "External dependency")
+
+ContainerDb(user_db, "User DB", "PostgreSQL", "External dependency")
+ContainerDb(telemetry_db, "Telemetry DB", "TimescaleDB", "External dependency")
+ContainerDb(device_db, "Device DB", "PostgreSQL", "External dependency")
+ContainerDb(automation_db, "Automation DB", "PostgreSQL", "External dependency")
+
+Container(device_service, "Device Service", "Go", "External dependency")
+
+' Контейнер User Service
+Container_Boundary(user_context, "User Service") {
+    Component(user_controller, "User Controller", "Handles profile & auth requests", "Go")
+    Component(auth_service, "Authentication Service", "Handles login, JWT issuance/refresh", "Go")
+    Component(user_repository, "User Repository", "Manages user data persistence", "Go")
+    Component(profile_manager, "Profile Manager", "Manages user settings & preferences", "Go")
+    Component(password_service, "Password Service", "Handles hashing & validation", "Go")
+}
+
+' Контейнер Telemetry Service
+Container_Boundary(telemetry_context, "Telemetry Service") {
+    Component(telemetry_ingestor, "Telemetry Ingestor", "Accepts metrics from devices (HTTP/MQTT)", "Go")
+    Component(telemetry_controller, "Telemetry Controller", "Handles API requests for historical data", "Go")
+    Component(telemetry_repository, "Telemetry Repository", "Manages writes/reads to DB", "Go")
+    Component(aggregator, "Data Aggregator", "Creates hourly/daily aggregates", "Go")
+    Component(event_publisher, "Event Publisher", "Publishes new readings to message broker", "Go")
+}
+
+' Контейнер Device Service
+Container_Boundary(device_context, "Device Service") {
+    Component(device_controller, "Device Controller", "Handles HTTP requests (CRUD)", "Go")
+    Component(device_repository, "Device Repository", "Manages persistence in DB", "Go")
+    Component(device_manager, "Device Manager", "Core logic: state, commands, validation", "Go")
+    Component(device_communicator, "Device Communicator", "Sends commands to physical devices (MQTT/HTTP)", "Go")
+}
+
+' Контейнер Automation Service
+Container_Boundary(automation_context, "Automation Service") {
+    Component(api_controller, "API Controller", "Handles HTTP requests (CRUD rules)", "Go")
+    Component(rule_engine, "Rule Engine", "Evaluates sensor data against rules", "Go")
+    Component(rule_repository, "Rule Repository", "Loads/Saves rules from/to DB", "Go")
+    Component(event_subscriber, "Event Subscriber", "Listens for sensor events from broker", "Go")
+    Component(device_commander, "Device Commander", "Sends commands to Device Service", "Go")
+}
+
+' -------------------
+' Связи для User Service
+' -------------------
+Rel(api_gateway, user_controller, "Sends login/profile requests", "HTTP")
+Rel(user_controller, auth_service, "Delegates login/refresh")
+Rel(user_controller, profile_manager, "Delegates profile updates")
+Rel(auth_service, user_repository, "Fetches user by credentials")
+Rel(profile_manager, user_repository, "Loads/Saves profile data")
+Rel(user_repository, user_db, "Executes CRUD operations")
+Rel(auth_service, password_service, "Validates/hashes passwords")
+
+' -------------------
+' Связи для Telemetry Service
+' -------------------
+Rel(api_gateway, telemetry_controller, "Requests historical/aggregated data", "HTTP")
+Rel(telemetry_controller, telemetry_repository, "Fetches data")
+Rel(telemetry_repository, telemetry_db, "Queries time-series data")
+
+Rel(telemetry_ingestor, telemetry_repository, "Stores raw metric")
+Rel(telemetry_ingestor, event_publisher, "Triggers event publish")
+Rel(event_publisher, message_broker, "Publishes 'sensor.reading' event", "AMQP")
+
+Rel(telemetry_repository, aggregator, "Provides data for aggregation")
+Rel(aggregator, telemetry_repository, "Stores aggregated data")
+
+' -------------------
+' Связи для Device Service
+' -------------------
+Rel(api_gateway, device_controller, "Sends device commands/queries", "HTTP")
+Rel(device_controller, device_manager, "Delegates business logic")
+Rel(device_manager, device_repository, "Loads/Saves device config & state")
+Rel(device_repository, device_db, "Executes SQL queries")
+Rel(device_manager, device_communicator, "Sends low-level command to device")
+
+' -------------------
+' Связи для Automation Service
+' -------------------
+Rel(api_gateway, api_controller, "Sends CRUD requests for rules", "HTTP")
+Rel(api_controller, rule_repository, "Delegates rule persistence")
+Rel(event_subscriber, message_broker, "Subscribes to 'sensor.reading' events", "AMQP")
+Rel(event_subscriber, rule_engine, "Feeds new sensor data for evaluation")
+Rel(rule_engine, rule_repository, "Fetches active rules for evaluation")
+Rel(rule_engine, device_commander, "Triggers device commands if condition met")
+Rel(device_commander, device_service, "Executes device actions (on/off)", "HTTP")
+Rel(rule_repository, automation_db, "Fetches/Stores automation rules", "SQL")
+
+LAYOUT_WITH_LEGEND()
+@enduml
