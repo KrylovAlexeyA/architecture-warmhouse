@@ -1,0 +1,90 @@
+@startuml
+title Rule Engine - Code Level Diagram (C4 ER-Aligned)
+
+package "Rule Engine Component" {
+  class RuleEngine {
+    - ruleCache: map[UUID][]Rule
+    - evaluationTimeout: time.Duration
+    + Evaluate(sensorData: SensorReading) error
+    - loadRulesForDevice(deviceID: UUID) []Rule
+    - evaluateRules(rules: []Rule, value: float64) error
+    - executeActions(rule: Rule) error
+  }
+
+  class Rule {
+    - ID: UUID <<PK>>
+    - Name: string
+    - Enabled: bool
+    - TriggerDeviceID: UUID <<FK>> ' Ссылается на Device в Device Service
+    - TriggerMetric: string ' Часть условия, для оптимизации поиска
+    - Conditions: []Condition ' Десериализуется из поля `condition` в AutomationRule
+    - Actions: []Action ' Десериализуется из поля `action` в AutomationRule
+    + Evaluate(sensorValue: float64) bool
+  }
+
+  class Condition {
+    - Operator: string
+    - Value: float64
+    + Evaluate(sensorValue: float64) bool
+  }
+
+  class Action {
+    - Type: string
+    - TargetDeviceID: UUID <<FK>> ' Ссылается на Device в Device Service
+    - Command: string
+    - Payload: map[string]interface{}
+  }
+
+  class SensorReading {
+    - DeviceID: UUID <<FK>> ' Ссылается на Device в Device Service
+    - Metric: string
+    - Value: float64
+    - Timestamp: time.Time
+  }
+}
+
+' Внешние зависимости (порты и адаптеры)
+interface "IRuleRepository" as IRuleRepo {
+  + FindActiveRulesByDeviceAndMetric(deviceID: UUID, metric: string) ([]Rule, error)
+}
+
+interface "IDeviceServiceClient" as IDeviceClient {
+  + SendCommand(deviceID: UUID, command: string, payload: map[string]interface{}) error
+}
+
+' Связи внутри компонента
+RuleEngine --> IRuleRepo : uses
+RuleEngine --> IDeviceClient : uses
+RuleEngine --> SensorReading : processes
+Rule "1" *-- "0..*" Condition : contains
+Rule "1" *-- "0..*" Action : contains
+RuleEngine --> Rule : evaluates
+
+' Внешние реализации (адаптеры, находятся за границами компонента)
+class "RuleRepository" as RuleRepoImpl
+class "DeviceServiceClient" as DeviceClientImpl
+
+IRuleRepo <|.. RuleRepoImpl : implements
+IDeviceClient <|.. DeviceClientImpl : implements
+
+note right of RuleRepoImpl
+  Реализация находится в
+  Automation Service.
+  Читает из Automation DB.
+end note
+
+note right of DeviceClientImpl
+  Реализация находится в
+  Automation Service.
+  Выполняет HTTP-запросы
+  к Device Service.
+end note
+
+note right of Rule
+  Поля Conditions и Actions
+  десериализуются из JSON-
+  полей в таблице
+  AutomationRule.
+end note
+
+@enduml

@@ -1,0 +1,16 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+Person(user, "Пользователь", "Пользователь системы умного дома")
+
+System_Boundary(smarthome, "Система SmartHome") {
+    Container(web_app, "Веб-приложение", "Go", "Предоставляет REST API для управления сенсорами")
+    Container(db, "База данных", "PostgreSQL", "Хранит данные сенсоров")
+    Container(ext_temp_api, "Внешний API температуры", "REST API", "Предоставляет актуальные температурные данные")
+}
+
+Rel(user, web_app, "Управляет сенсорами через", "HTTP/REST")
+Rel(web_app, db, "Читает/записывает данные", "SQL")
+Rel(web_app, ext_temp_api, "Получает температурные данные", "HTTP/REST")
+
+@enduml

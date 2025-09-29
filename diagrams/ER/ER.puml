@@ -1,0 +1,155 @@
+@startuml
+!define table(x) entity x
+
+' Сущности для User Service (User DB)
+table("User") {
+  * user_id : UUID
+  --
+  username : string
+  email : string
+  password_hash : string
+  first_name : string
+  last_name : string
+  created_at : timestamp
+  updated_at : timestamp
+}
+
+table("UserProfile") {
+  * profile_id : UUID
+  * user_id : UUID <<FK>>
+  --
+  language : string
+  timezone : string
+  notification_preferences : json
+  avatar_url : string
+  updated_at : timestamp
+}
+
+' Сущности для Device Service (Device DB)
+table("Device") {
+  * device_id : UUID
+  * house_id : UUID <<FK>>
+  * device_type_id : UUID <<FK>>
+  --
+  name : string
+  serial_number : string
+  status : enum <<'online', 'offline', 'error'>>
+  current_state : json
+  firmware_version : string
+  created_at : timestamp
+  updated_at : timestamp
+}
+
+table("DeviceType") {
+  * device_type_id : UUID
+  --
+  name : string
+  description : string
+  manufacturer : string
+  model : string
+  supported_commands : json
+  created_at : timestamp
+}
+
+table("House") {
+  * house_id : UUID
+  * owner_user_id : UUID <<FK>> ' Логическая связь с User Service
+  --
+  name : string
+  address : string
+  created_at : timestamp
+  updated_at : timestamp
+}
+
+' Сущности для Telemetry Service (Telemetry DB)
+table("TelemetryData") {
+  * telemetry_id : UUID
+  * device_id : UUID <<FK>> ' Логическая связь с Device Service
+  * module_id : UUID <<FK>> ' Логическая связь с Device Service
+  --
+  recorded_at : timestamp
+  temperature_c : double
+  humidity_pct : double
+  battery_level_pct : int
+  signal_strength : int
+  raw_payload : json
+}
+
+table("AggregatedData") {
+  * aggregate_id : UUID
+  * device_id : UUID <<FK>> ' Логическая связь с Device Service
+  * module_id : UUID <<FK>> ' Логическая связь с Device Service
+  --
+  aggregation_period : enum <<'hourly', 'daily'>>
+  start_time : timestamp
+  end_time : timestamp
+  avg_temperature_c : double
+  min_temperature_c : double
+  max_temperature_c : double
+  avg_humidity_pct : double
+}
+
+' Сущности для Automation Service (Automation DB)
+table("AutomationRule") {
+  * rule_id : UUID
+  * trigger_device_id : UUID <<FK>> ' Логическая связь с Device Service
+  * action_device_id : UUID <<FK>> ' Логическая связь с Device Service
+  --
+  name : string
+  description : string
+  is_enabled : boolean
+  condition : json
+  action : json
+  created_at : timestamp
+  updated_at : timestamp
+}
+
+table("RuleExecutionLog") {
+  * log_id : UUID
+  * rule_id : UUID <<FK>>
+  --
+  executed_at : timestamp
+  trigger_value : json
+  action_result : json
+  success : boolean
+}
+
+' Связи внутри контекста User Service
+User ||--o{ UserProfile : "1 to 1"
+
+' Связи внутри контекста Device Service
+House ||--o{ Device : "1 to Many"
+DeviceType ||--o{ Device : "1 to Many"
+
+' Связи внутри контекста Telemetry Service
+Device }o--|| TelemetryData : "1 to Many (logical)"
+Device }o--|| AggregatedData : "1 to Many (logical)"
+
+' Связи внутри контекста Automation Service
+AutomationRule }|--|| RuleExecutionLog : "1 to Many"
+
+' Примечание: связи между контекстами (например, House.owner_user_id -> User.user_id)
+' являются логическими и не являются FK в БД. Они реализуются через обмен сообщениями или API.
+note right of House
+  owner_user_id является UUID,
+  который логически соответствует
+  user_id в User Service.
+  Прямой FK в БД отсутствует.
+end note
+
+note right of TelemetryData
+  device_id и module_id являются UUID,
+  которые логически соответствуют
+  сущностям в Device Service.
+  Прямой FK в БД отсутствует.
+end note
+
+note right of AutomationRule
+  trigger_device_id и action_device_id
+  являются UUID, которые логически
+  соответствуют сущностям в
+  Device Service. Прямой FK
+  в БД отсутствует.
+end note
+
+@enduml

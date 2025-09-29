@@ -1,0 +1,14 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+Person(user, "User", "Owner of the smart home")
+System(smart_home, "Smart Home", "Monolithic application for device management")
+
+System_Ext(temperature_api, "Temperature API", "External temperature sensor API")
+System_Ext(postgres, "PostgreSQL", "Database")
+
+Rel(user, smart_home, "Controls devices via web interface")
+Rel(smart_home, temperature_api, "Gets temperature data")
+Rel(smart_home, postgres, "Stores device data and settings")
+
+@enduml

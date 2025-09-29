@@ -1,0 +1,294 @@
+openapi: 3.0.3
+info:
+  title: SmartHome Device Management API
+  description: API для управления IoT-устройствами в экосистеме SmartHome.
+  version: 1.0.0
+  contact:
+    name: SmartHome Dev Team
+
+servers:
+  - url: https://api.smarthome.local/v1
+    description: Production server
+
+tags:
+  - name: Devices
+    description: Операции с устройствами
+
+paths:
+  /devices/{deviceId}:
+    get:
+      tags:
+        - Devices
+      summary: Получить информацию об устройстве
+      description: Возвращает полные данные устройства по его уникальному идентификатору.
+      parameters:
+        - name: deviceId
+          in: path
+          description: Уникальный ID устройства
+          required: true
+          schema:
+            type: string
+            example: "d7b3a9f1-4c8e-4f2a-9b1c-2a3d4e5f6a7b"
+      responses:
+        '200':
+          description: Устройство успешно найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+              example:
+                id: "d7b3a9f1-4c8e-4f2a-9b1c-2a3d4e5f6a7b"
+                name: "Термостат в гостиной"
+                type: "thermostat"
+                status: "online"
+                location: "Гостиная"
+                firmwareVersion: "v2.1.4"
+                lastSeen: "2025-04-05T10:30:00Z"
+                createdAt: "2025-01-15T08:00:00Z"
+        '404':
+          description: Устройство не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: "DEVICE_NOT_FOUND"
+                message: "Устройство с указанным ID не существует"
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /devices/{deviceId}/status:
+    patch:
+      tags:
+        - Devices
+      summary: Обновить статус устройства
+      description: Обновляет текущий статус устройства (например, online → offline).
+      parameters:
+        - name: deviceId
+          in: path
+          description: Уникальный ID устройства
+          required: true
+          schema:
+            type: string
+            example: "d7b3a9f1-4c8e-4f2a-9b1c-2a3d4e5f6a7b"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceStatusUpdateRequest'
+            example:
+              status: "offline"
+      responses:
+        '200':
+          description: Статус успешно обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceStatusUpdateResponse'
+              example:
+                message: "Status updated successfully"
+                deviceId: "d7b3a9f1-4c8e-4f2a-9b1c-2a3d4e5f6a7b"
+                newStatus: "offline"
+                updatedAt: "2025-04-05T11:00:00Z"
+        '400':
+          description: Некорректный статус
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: "INVALID_STATUS"
+                message: "Допустимые значения статуса: online, offline, error"
+        '404':
+          description: Устройство не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /devices/{deviceId}/commands:
+    post:
+      tags:
+        - Devices
+      summary: Отправить команду устройству
+      description: Отправляет команду на устройство (например, установить температуру).
+      parameters:
+        - name: deviceId
+          in: path
+          description: Уникальный ID устройства
+          required: true
+          schema:
+            type: string
+            example: "d7b3a9f1-4c8e-4f2a-9b1c-2a3d4e5f6a7b"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceCommandRequest'
+            example:
+              command: "SET_TEMPERATURE"
+              parameters:
+                targetTemperature: 22.5
+      responses:
+        '201':
+          description: Команда принята в обработку
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceCommandResponse'
+              example:
+                commandId: "cmd-550e8400-e29b-41d4-a716-446655440000"
+                deviceId: "d7b3a9f1-4c8e-4f2a-9b1c-2a3d4e5f6a7b"
+                status: "queued"
+                issuedAt: "2025-04-05T11:05:00Z"
+        '400':
+          description: Некорректная команда или параметры
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Устройство не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    Device:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Уникальный идентификатор устройства
+        name:
+          type: string
+          description: Название устройства
+        type:
+          type: string
+          description: Тип устройства (например, thermostat, light, sensor)
+        status:
+          type: string
+          description: Текущий статус устройства
+          enum: [online, offline, error]
+        location:
+          type: string
+          description: Физическое расположение устройства
+        firmwareVersion:
+          type: string
+          description: Версия прошивки
+        lastSeen:
+          type: string
+          format: date-time
+          description: Время последнего подключения
+        createdAt:
+          type: string
+          format: date-time
+          description: Время регистрации устройства
+      required:
+        - id
+        - name
+        - type
+        - status
+        - createdAt
+
+    DeviceStatusUpdateRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          description: Новый статус устройства
+          enum: [online, offline, error]
+      required:
+        - status
+
+    DeviceStatusUpdateResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Сообщение о результате операции
+        deviceId:
+          type: string
+          description: ID устройства
+        newStatus:
+          type: string
+          description: Новый статус
+        updatedAt:
+          type: string
+          format: date-time
+          description: Время обновления
+      required:
+        - message
+        - deviceId
+        - newStatus
+        - updatedAt
+
+    DeviceCommandRequest:
+      type: object
+      properties:
+        command:
+          type: string
+          description: Тип команды
+          enum: [SET_TEMPERATURE, TURN_ON, TURN_OFF, SET_BRIGHTNESS]
+        parameters:
+          type: object
+          description: Параметры команды (зависят от типа)
+          additionalProperties: true
+      required:
+        - command
+
+    DeviceCommandResponse:
+      type: object
+      properties:
+        commandId:
+          type: string
+          description: Уникальный ID команды
+        deviceId:
+          type: string
+          description: ID устройства
+        status:
+          type: string
+          description: Статус команды
+          enum: [queued, sent, delivered, failed]
+        issuedAt:
+          type: string
+          format: date-time
+          description: Время отправки команды
+      required:
+        - commandId
+        - deviceId
+        - status
+        - issuedAt
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Код ошибки
+        message:
+          type: string
+          description: Описание ошибки
+      required:
+        - code
+        - message
